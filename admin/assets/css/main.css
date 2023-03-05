@@ -1,0 +1,29 @@
+.left-container {
+    width: 400px;
+    display: table-cell;
+}
+
+.edit-object {
+    display: none;
+}
+
+main {
+    display: table-cell;
+}
+main .container {
+    margin: 0 20px;
+}
+main li .object {
+    border: 1px solid #ccc;
+    display: inline-block;
+    margin: 1px;
+    padding: 5px;
+}
+main li .edit {
+    color: blue;
+    cursor: pointer;
+}
+main li .delete {
+    color: red;
+    cursor: pointer;
+}
