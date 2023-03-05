@@ -12,6 +12,7 @@ $objects = getObjectsTree(getObjects());
 </head>
 <body>
 <main>
+    <a href="admin">Перейти в административную панель</a>
     <div class="description">
         <h2>Описание объекта</h2>
         <div class="text"></div>

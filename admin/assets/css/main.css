@@ -1,3 +1,7 @@
+li {
+    list-style-type: none;
+}
+
 .left-container {
     width: 400px;
     display: table-cell;

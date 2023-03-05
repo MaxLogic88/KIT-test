@@ -17,6 +17,7 @@ if (!isset($_SESSION['user_id'])) {
     <link href="assets/css/main.css" rel="stylesheet"/>
 </head>
 <body>
+<a href="../">Перейти на главную страницу</a>
 <aside class="left-container">
     <form action="form-handler.php" method="post">
         <input type="hidden" name="task" value="logout"/>
