@@ -26,7 +26,7 @@ if (isset($_POST['task'])) {
             //В нашей реализации актуально только для Ajax
             if ($_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
                 $response['DataObject'] = getObject($_POST['id']);
-                $response['options'] = getObjectsForTreeChanges([$response['DataObject']['lft'], $response['DataObject']['rgt']]);
+                $response['options'] = getOptionsForEditObject($_POST['id']);
                 echo json_encode($response);
                 die();
             }
@@ -62,8 +62,8 @@ if (isset($_POST['task'])) {
             $response = deleteObject($_POST['id']);
 
             //Для Ajax удаления
-            if ($response === true && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
-                echo json_encode('success');
+            if ($_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+                echo json_encode($response);
                 die();
             }
             header('Location: main.php');

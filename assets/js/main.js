@@ -18,7 +18,7 @@ window.onload = function () {
         });
     }
 
-    //Показываем/скрываем дочерние ветки
+    //Показываем дочерние ветки
     let showChilds = document.querySelectorAll('.showChilds');
     for (let i = 0; i < showChilds.length; i++) {
         showChilds[i].addEventListener('click', function () {

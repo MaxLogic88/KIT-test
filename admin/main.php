@@ -32,7 +32,12 @@ if (!isset($_SESSION['user_id'])) {
                 <option value="0" selected>Не выбран</option>
                 <?php if (is_array($objects)): ?>
                     <?php foreach ($objects as $object): ?>
-                        <option value="<?= $object['id'] ?>"><?= $object['title'] ?></option>
+                        <option value="<?= $object['id'] ?>">
+                            <?php for ($i = 0; $i < $object['deep']; $i++): ?>
+                            -
+                            <?php endfor; ?>
+                            <?= $object['title'] ?>
+                        </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>

@@ -56,7 +56,7 @@ function deleteObject($objectId)
     $stmt = pdo()->prepare("DELETE FROM objects WHERE id IN (" . implode(',', $objects) . ")");
     $stmt->execute();
 
-    return true;
+    return $objects;
 }
 
 //Рекурсивный сбор ID для удаления
@@ -79,95 +79,26 @@ function editObject($request)
 }
 
 //Рекурсивное построение древовидной структуры
-function getTree($objects, &$result = [], $parent_id = 0, $deep = 0)
+function getTree($objects, $getOptionsObjectId = false, &$result = [], $parent_id = 0, $deep = 0)
 {
     foreach ($objects as $key => $object) {
+        if ($object['id'] == $getOptionsObjectId) continue; //Не включаем дочерние элементы в варианты выбора родителя
         if ($object['parent_id'] == $parent_id) {
             $result[$object['id']]['id'] = $object['id'];
             $result[$object['id']]['title'] = $object['title'];
             $result[$object['id']]['parent_id'] = $object['parent_id'];
-//            $result[$object['id']]['key'] = $key;
             $result[$object['id']]['deep'] = $deep;
             $result[$object['id']]['margin-left'] = $deep * 20 . 'px';
-//            $result[$object['id']]['prev'] = prev($result);
-//            $tempResult = $result;
-            getTree($objects, $result, $object['id'], $deep + 1);
-//            if (($tempResult == $result) && (1)) {
-//                $result[$object['id']]['last'] = true;
-//            }
+            getTree($objects, $getOptionsObjectId, $result, $object['id'], $deep + 1);
         }
     }
     return $result;
 }
 
-//Для того, чтобы определить когда надо закрывать вложенные <ul>
-function updateLastElem(&$objects)
+//Чтобы не копипастить, возьмем готовую функцию построения дерева и добавим в нее условия возврата всех элементов кроме вложенных
+function getOptionsForEditObject($objectId)
 {
-    foreach ($objects as $key => &$object) {
-        if ($object[$key+1]['deep'] != $object['deep']) {
-            $last = true;
-            for ($i = $key + 1; $i < count($objects); $i++) {
-                if ($objects[$i]['parent_id'] == $object['parent_id']) $last = false;
-            }
-            if ($last) {
-                $object['last'] = true;
-                $last = false;
-            }
-        }
-        if ((isset($objects[$key-1]) && ($objects[$key-1]['deep'] == $object['deep']) && ($objects[$key+1]['deep'] != $object['deep']))) {
-            $object['last'] = true;
-        }
-    }
-}
-
-function testTree($objects, $parent_id = 0)
-{
-    $result = [];
-    foreach ($objects as $key => $object) {
-        if ($object['parent_id'] == $parent_id) {
-            $result[$object['id']]['id'] = $object['id'];
-            $result[$object['id']]['title'] = $object['title'];
-            $result[$object['id']]['parent_id'] = $object['parent_id'];
-            $result[$object['id']]['key'] = $key;
-            $result[$object['id']]['childs'] = testTree($objects, $object['id']);
-        }
-    }
-    return $result;
-}
-
-//Строим дерево объектов
-function getObjectsTree($objects)
-{
-    $lastObject = 0;
-    $start = 1;
-    $end = 0;
-    foreach ($objects as $key => $object) {
-        $object['parent'] = false;
-
-        if (isset($objects[$lastObject]) && $objects[$lastObject]['id'] == $object['parent_id']) {
-            $objects[$lastObject]['parent'] = true;
-        }
-
-        $object['deeper'] = false;
-        $object['shallower'] = false;
-        $object['level_diff'] = 0;
-
-        if (isset($objects[$lastObject])) {
-            $objects[$lastObject]['deeper'] = ($object['level'] > $objects[$lastObject]['level']);
-            $objects[$lastObject]['shallower'] = ($object['level'] < $objects[$lastObject]['level']);
-            $objects[$lastObject]['level_diff'] = ($objects[$lastObject]['level'] - $object['level']);
-        }
-
-        $lastObject = $key;
-    }
-
-    if (isset($objects[$lastObject])) {
-        $objects[$lastObject]['deeper'] = (($start ?: 1) > $objects[$lastObject]['level']);
-        $objects[$lastObject]['shallower'] = (($start ?: 1) < $objects[$lastObject]['level']);
-        $objects[$lastObject]['level_diff'] = ($objects[$lastObject]['level'] - ($start ?: 1));
-    }
-
-    return $objects;
+    return array_values(getTree(getObjects(), $objectId));
 }
 
 //For simple debug

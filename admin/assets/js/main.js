@@ -16,11 +16,16 @@ window.onload = function () {
                     let select = editBlock.querySelector('[name="parent_id"]');
                     select.options.length = 0;
                     addOption(select, "Не выбрано", 0);
-                    data.options.forEach(function(option) {
-                        let selected = false;
-                        if (option.id === data.DataObject.parent_id) selected = true;
-                        addOption(select, option.title, option.id, selected);
-                    });
+                    if (data.options) {
+                        data.options.forEach(function (option) {
+                            let selected = false;
+                            if (option.id === data.DataObject.parent_id) selected = true;
+                            for (let i = 0; i < option.deep; i++) {
+                                option.title = '-' + option.title;
+                            }
+                            addOption(select, option.title, option.id, selected);
+                        });
+                    }
                     editBlock.style.display = 'block';
                 } else {
                     console.log('error', data);
@@ -37,16 +42,17 @@ window.onload = function () {
             let data = new FormData();
             data.append('id', id);
             data.append('task', 'deleteObject');
-            SendRequest('post', '/admin/form-handler.php', data, function (data) {
-                if (data === 'success') {
-                    let li = deleteObjects[i].parentNode.parentNode;
-                    let ul = li.parentNode;
-                    li.remove();
-                    if (ul.querySelector('li') === null) ul.remove();
-                } else {
-                    console.log('error', data);
-                }
-            });
+            if(confirm('Вы действительно хотите удалить этот узел?')) {
+                SendRequest('post', '/admin/form-handler.php', data, function (data) {
+                    if (data) {
+                        data.forEach(function (id) {
+                            document.querySelector('#object-' + id).remove();
+                        });
+                    } else {
+                        console.log('error', data);
+                    }
+                });
+            }
         });
     }
 }
