@@ -16,18 +16,23 @@ main {
 }
 main .container {
     margin: 0 20px;
+    width: 100%;
 }
-main li .object {
+main .object {
     border: 1px solid #ccc;
-    display: inline-block;
+    display: block;
     margin: 1px;
     padding: 5px;
 }
-main li .edit {
+main .edit {
     color: blue;
     cursor: pointer;
 }
-main li .delete {
+main .delete {
     color: red;
     cursor: pointer;
+}
+
+main .objects-wrapper {
+    display: none;
 }

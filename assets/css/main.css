@@ -4,22 +4,23 @@ li {
 main .container {
     margin: 0 20px;
 }
-main li .object {
+main .object {
     border: 1px solid #ccc;
-    display: inline-block;
+    display: none;
     margin: 1px;
     padding: 5px;
+    width: 200px;
 }
-main li .showChilds {
+main .showChilds {
     cursor: pointer;
     color: green;
 }
-main li .title {
+main .title {
     cursor: pointer;
     color: blue;
 }
-main li.parent ul {
-    display: none;
+main .object[data-parent="0"]{
+    display: block;
 }
 
 main .description {

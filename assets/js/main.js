@@ -22,13 +22,11 @@ window.onload = function () {
     let showChilds = document.querySelectorAll('.showChilds');
     for (let i = 0; i < showChilds.length; i++) {
         showChilds[i].addEventListener('click', function () {
-            let ul = this.parentNode.parentNode.querySelector('ul');
-            if (ul.style.display === 'block') {
-                ul.style.display = 'none';
-                this.innerText = '[+]';
-            } else {
-                ul.style.display = 'block';
-                this.innerText = '[-]';
+            let parentId = this.parentNode.getAttribute('id').slice(7);
+            let childs = document.querySelectorAll('[data-parent="' + parentId +'"]');
+            for (let j = 0; j < childs.length; j++) {
+                childs[j].style.display = 'block';
+                document.querySelector('#object-' + parentId + ' .showChilds').style.display = 'none';
             }
         });
     }

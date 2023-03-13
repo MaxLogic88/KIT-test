@@ -1,7 +1,11 @@
 <?php
 require_once(realpath('boot.php'));
 
-$objects = getObjectsTree(getObjects());
+//sd(testTree(getObjects()));
+$objects = getTree(getObjects());
+$objects = array_values($objects);
+//updateLastElem($objects);
+//sd($objects);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -20,31 +24,14 @@ $objects = getObjectsTree(getObjects());
     <div class="container">
         <h1>Список объектов</h1>
         <?php if (is_array($objects)): ?>
-            <ul>
-                <?php
-                foreach ($objects as $object) {
-                    $htmlClass = 'nav-object';
-                    if ($object['deeper']) $htmlClass .= ' deeper';
-                    if ($object['parent']) $htmlClass .= ' parent';
-
-                    echo '<li class="' . $htmlClass . '">';
-                    ?>
-                    <div class="object" id="object-<?= $object['id'] ?>">
-                        <span class="title"><?= $object['title'] ?></span>
-                        <?php if ($object['deeper']) echo '<span class="showChilds">[+]</span>'; ?>
-                    </div>
-                    <?php
-                    if ($object['deeper']) {
-                        echo '<ul>';
-                    } elseif ($object['shallower']) {
-                        echo '</li>';
-                        echo str_repeat('</ul></li>', $object['level_diff']);
-                    } else {
-                        echo '</li>';
-                    }
-                }
-                ?>
-            </ul>
+            <?php foreach ($objects as $key => $object): ?>
+                <div class="object" id="object-<?= $object['id'] ?>" data-parent="<?= $object['parent_id'] ?>" style="margin-left: <?= $object['margin-left'] ?>">
+                    <span class="title"><?= $object['title'] ?></span>
+                    <?php if ($objects[$key+1]['deep'] > $object['deep']): ?>
+                        <span class="showChilds">[+]</span>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </div>
 </main>

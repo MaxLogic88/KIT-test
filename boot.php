@@ -20,7 +20,7 @@ function pdo()
 //Получаем всё дерево объектов
 function getObjects()
 {
-    $stmt = pdo()->prepare("SELECT * FROM objects ORDER BY lft");
+    $stmt = pdo()->prepare("SELECT * FROM objects");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -33,38 +33,10 @@ function getObject($objectId)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-//Узнаем максимальное значение rgt
-function getMaxRgt()
-{
-    $sql = "SELECT MAX(rgt) FROM objects";
-    $stmt = pdo()->prepare($sql);
-    $stmt->execute();
-    return $stmt->fetchColumn();
-}
-
 //Создание объекта
 function addObject($request)
 {
-    $parentObject = ($request['parent_id'] > 0) ? getObject($request['parent_id']) : false;
-
-    $rgt = getMaxRgt();
-
-    if (!$parentObject) {
-        $request['level'] = 0;
-        $request['rgt'] = 1;
-        if ($rgt >= 2) $request['rgt'] = $rgt + 1;
-    } else {
-        $request['level'] = $parentObject['level'];
-        $request['rgt'] = $parentObject['rgt'];
-
-        //Обновляем дерево объектов
-        $sql = "UPDATE objects SET rgt = rgt + 2, lft = IF(lft > :rgt, lft + 2, lft) WHERE rgt >= :rgt";
-        $stmt = pdo()->prepare($sql);
-        $stmt->bindValue(':rgt', $request['rgt'], PDO::PARAM_INT);
-        $stmt->execute();
-    }
-
-    $sql = "INSERT INTO objects (title, description, parent_id, level, lft, rgt) VALUES (:title, :description, :parent_id, :level + 1, :rgt, :rgt + 1)";
+    $sql = "INSERT INTO objects (title, description, parent_id) VALUES (:title, :description, :parent_id)";
     $stmt = pdo()->prepare($sql);
     $stmt->execute($request);
 }
@@ -72,96 +44,95 @@ function addObject($request)
 //Удаление объекта
 function deleteObject($objectId)
 {
-    $object = getObject($objectId);
-    $stmt = pdo()->prepare("DELETE FROM objects WHERE lft >= ? AND rgt <= ?");
-    $stmt->execute([$object['lft'], $object['rgt']]);
+    //Удаление всех дочерних элементов может происходить рекурсивно
+    //...но тогда придется делать много запросов: поиск дочерних элементов каждого нового уровня вложенности.
+    //Кроме того, если при работе с большим объемом данных на сервер произойдет сбой, то может случиться так,
+    //что часть наших данных удалится, а часть останется, что приведет к потере целостности записей БД.
+    //Поэтому мы пойдем другим путем. Выберем все записи, и используем рекурсивную функцию, чтобы
+    //уже в ней собрать все необходимые идентификаторы для удаления, а потом удалим все объекты одним запросом.
+    $objects[] = $objectId;
+    removeChilds(getObjects(), $objectId, $objects);
 
-    //Обновляем дерево объектов
-    $sql = "UPDATE objects SET rgt = rgt - (:rgt - :lft + 1), lft = IF(lft > :lft, lft - (:rgt - :lft + 1), lft) WHERE rgt > :rgt";
-    $stmt = pdo()->prepare($sql);
-    $stmt->bindValue(':lft', $object['lft'], PDO::PARAM_INT);
-    $stmt->bindValue(':rgt', $object['rgt'], PDO::PARAM_INT);
+    $stmt = pdo()->prepare("DELETE FROM objects WHERE id IN (" . implode(',', $objects) . ")");
     $stmt->execute();
 
     return true;
 }
 
+//Рекурсивный сбор ID для удаления
+function removeChilds($objects, $removeId, &$result)
+{
+    foreach ($objects as $object) {
+        if ($removeId == $object['parent_id']) {
+            $result[] = $object['id'];
+            removeChilds($objects, $object['id'], $result);
+        }
+    }
+}
+
 //Редактирование объекта
 function editObject($request)
 {
-    $object = getObject($request['id']);
-
-    $stmt = pdo()->prepare("SELECT level FROM objects WHERE id = ?");
-    $stmt->execute([$request['parent_id']]);
-    $newParentLevel = $stmt->fetchColumn() ?: 0;
-
-    //Если был изменен родитель
-    if ($object['parent_id'] !== $request['parent_id']) {
-        //Выбираем правый ключ в зависимости от того, куда перемещаем объект
-        $rgtNear = 0;
-        if ($newParentLevel === 0) {
-            $rgtNear = getMaxRgt();
-        } else {
-            $stmt = pdo()->prepare("SELECT (rgt - 1) FROM objects WHERE id = ?");
-            $stmt->execute([$request['parent_id']]);
-            $rgtNear = $stmt->fetchColumn();
-        }
-
-        //Определяем смещение
-        $skewLevel = $newParentLevel - $object['level'] + 1;
-        $skewTree = $object['rgt'] - $object['lft'] + 1;
-
-        $data = [
-            'lft' => $object['lft'],
-            'skewTree' => $skewTree,
-            'skewLevel' => $skewLevel,
-            'rgtNear' => $rgtNear,
-            'rgt' => $object['rgt']
-        ];
-
-        //У нас 2 разных случая расчета lft и rgt, в зависимости от перемещения вверх или вниз по дереву
-        if ($object['rgt'] > $rgtNear) {
-            echo 'up';
-            $data['skewEdit'] = $rgtNear - $object['lft'] + 1;
-
-            $sql = "UPDATE objects SET rgt = IF(lft >= :lft, rgt + :skewEdit, IF(rgt < :lft, rgt + :skewTree, rgt)), 
-                   level = IF(lft >= :lft, level + :skewLevel, level), 
-                   lft = IF(lft >= :lft, lft + :skewEdit, IF(lft > :rgtNear, lft + :skewTree, lft)) WHERE rgt > :rgtNear AND lft < :rgt";
-            $stmt = pdo()->prepare($sql);
-            $stmt->execute($data);
-        } else {
-            echo 'down';
-            $data['skewEdit'] = $rgtNear - $object['lft'] + 1 - $skewTree;
-
-            $sql = "UPDATE objects SET lft = IF(rgt <= :rgt, lft + :skewEdit, IF(lft > :rgt, lft - :skewTree, lft)), 
-                   level = IF(rgt <= :rgt, level + :skewLevel, level), 
-                   rgt = IF(rgt <= :rgt, rgt + :skewEdit, IF(rgt <= :rgtNear, rgt - :skewTree, rgt)) WHERE rgt > :lft AND lft <= :rgtNear";
-            $stmt = pdo()->prepare($sql);
-            $stmt->execute($data);
-        }
-    }
-
-    updateObject($request);
-}
-
-/**
- * Список допустимых объектов для перемещения узла
- * @param array $data lft, rgt
- * @return array
- */
-function getObjectsForTreeChanges($data)
-{
-    $stmt = pdo()->prepare("SELECT id, title FROM `objects` WHERE id NOT IN (SELECT id FROM objects WHERE lft >= ? AND rgt <= ?) ORDER BY lft");
-    $stmt->execute($data);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-//Обновляем данные объекта без изменений в дереве
-function updateObject($data)
-{
     $sql = "UPDATE objects SET title = :title, description = :description, parent_id = :parent_id WHERE id = :id";
     $stmt = pdo()->prepare($sql);
-    $stmt->execute($data);
+    $stmt->execute($request);
+}
+
+//Рекурсивное построение древовидной структуры
+function getTree($objects, &$result = [], $parent_id = 0, $deep = 0)
+{
+    foreach ($objects as $key => $object) {
+        if ($object['parent_id'] == $parent_id) {
+            $result[$object['id']]['id'] = $object['id'];
+            $result[$object['id']]['title'] = $object['title'];
+            $result[$object['id']]['parent_id'] = $object['parent_id'];
+//            $result[$object['id']]['key'] = $key;
+            $result[$object['id']]['deep'] = $deep;
+            $result[$object['id']]['margin-left'] = $deep * 20 . 'px';
+//            $result[$object['id']]['prev'] = prev($result);
+//            $tempResult = $result;
+            getTree($objects, $result, $object['id'], $deep + 1);
+//            if (($tempResult == $result) && (1)) {
+//                $result[$object['id']]['last'] = true;
+//            }
+        }
+    }
+    return $result;
+}
+
+//Для того, чтобы определить когда надо закрывать вложенные <ul>
+function updateLastElem(&$objects)
+{
+    foreach ($objects as $key => &$object) {
+        if ($object[$key+1]['deep'] != $object['deep']) {
+            $last = true;
+            for ($i = $key + 1; $i < count($objects); $i++) {
+                if ($objects[$i]['parent_id'] == $object['parent_id']) $last = false;
+            }
+            if ($last) {
+                $object['last'] = true;
+                $last = false;
+            }
+        }
+        if ((isset($objects[$key-1]) && ($objects[$key-1]['deep'] == $object['deep']) && ($objects[$key+1]['deep'] != $object['deep']))) {
+            $object['last'] = true;
+        }
+    }
+}
+
+function testTree($objects, $parent_id = 0)
+{
+    $result = [];
+    foreach ($objects as $key => $object) {
+        if ($object['parent_id'] == $parent_id) {
+            $result[$object['id']]['id'] = $object['id'];
+            $result[$object['id']]['title'] = $object['title'];
+            $result[$object['id']]['parent_id'] = $object['parent_id'];
+            $result[$object['id']]['key'] = $key;
+            $result[$object['id']]['childs'] = testTree($objects, $object['id']);
+        }
+    }
+    return $result;
 }
 
 //Строим дерево объектов

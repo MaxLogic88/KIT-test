@@ -1,7 +1,8 @@
 <?php
 require_once(realpath('../boot.php'));
 
-$objects = getObjectsTree(getObjects());
+$objects = getTree(getObjects());
+$objects = array_values($objects);
 
 //Если пользователь не авторизован, то перенаправляем на страницу авторизации
 if (!isset($_SESSION['user_id'])) {
@@ -71,35 +72,18 @@ if (!isset($_SESSION['user_id'])) {
 <main>
     <div class="container">
         <h1>Список объектов</h1>
-        <?php if (is_array($objects)): ?>
-            <ul>
-                <?php
-                foreach ($objects as $object) {
-                    $htmlClass = 'nav-object';
-                    if ($object['deeper']) $htmlClass .= ' deeper';
-                    if ($object['parent']) $htmlClass .= ' parent';
-
-                    echo '<li class="' . $htmlClass . '">';
-                    ?>
-                    <div class="object" id="object-<?= $object['id'] ?>">
+        <div id="objects">
+            <?php if (is_array($objects)): ?>
+                <?php foreach ($objects as $key => $object): ?>
+                    <div class="object" id="object-<?= $object['id'] ?>" style="margin-left: <?= $object['margin-left'] ?>">
                         <span class="title"><?= $object['title'] ?></span>
                         ---
                         <span class="edit">[редактировать]</span>
                         <span class="delete">[удалить]</span>
                     </div>
-                    <?php
-                    if ($object['deeper']) {
-                        echo '<ul>';
-                    } elseif ($object['shallower']) {
-                        echo '</li>';
-                        echo str_repeat('</ul></li>', $object['level_diff']);
-                    } else {
-                        echo '</li>';
-                    }
-                }
-                ?>
-            </ul>
-        <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     </div>
 </main>
 <script src="assets/js/functions.js"></script>
