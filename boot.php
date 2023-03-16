@@ -101,6 +101,31 @@ function getOptionsForEditObject($objectId)
     return array_values(getTree(getObjects(), $objectId));
 }
 
+//Функция для получения подстроки между заданными параметрами $between
+function getStrBetween($string, $between)
+{
+    $string = ' ' . $string;
+    $ini = mb_strpos($string, $between[0]);
+    $ini += mb_strlen($between[0]);
+    $len = mb_strpos($string, $between[1], $ini) - $ini;
+    return mb_substr($string, $ini, $len);
+}
+
+//Загружаем template из html файла и подставляем в него данные (шаблонизатор)
+function loadTemplate($template, $tags = [], $between = false, $removeBetween = false)
+{
+    $html = file_get_contents($template);
+    if (is_array($between)) {
+        $tags[$between[0]] = '';
+        $tags[$between[1]] = '';
+
+        if ($removeBetween) {
+            $html = str_replace(getStrBetween($html, $between), '', $html);
+        }
+    }
+    return strtr($html, $tags);
+}
+
 //For simple debug
 function sd($data = '')
 {
